@@ -11,28 +11,53 @@ const char *topic = "esp32/state";
 const int mqtt_port = 1883;
 const char *client_id = "ESP32-wroom";
 
-// States
-const char LISTENING = '0';
-const char RESULT_POSITIVE = '1';
-const char RESULT_NEGATIVE = '2';
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-char state = LISTENING;
+enum State {
+  LISTENING,
+  RESULT_POSITIVE,
+  RESULT_NEGATIVE,
+  UNKNOWN
+};
+
+State currentState = LISTENING;
+
+unsigned long stateChangeTime = 0;
+const unsigned long stateChangeDelay = 5000;
+
+// Function to check if it's time to return to default state (LISTENING)
+void check_return_to_LISTENING() {
+  if ((currentState != LISTENING) && (millis() - stateChangeTime >= stateChangeDelay)) {
+    currentState = LISTENING;
+    update_LEDs();
+  }
+}
 
 // LEDS
 const byte green_led_gpio = 13;
 const byte red_led_gpio = 26;
 const byte blue_led_gpio = 12;
 
-WiFiClient espClient;
-PubSubClient client(espClient);
+void update_LEDs() {
+  digitalWrite(blue_led_gpio, currentState == LISTENING);
+  digitalWrite(green_led_gpio, currentState == RESULT_POSITIVE);
+  digitalWrite(red_led_gpio, currentState == RESULT_NEGATIVE);
+  // Turn off all LEDs if the state is UNKNOWN
+  if (currentState == UNKNOWN) {
+    digitalWrite(blue_led_gpio, LOW);
+    digitalWrite(green_led_gpio, LOW);
+    digitalWrite(red_led_gpio, LOW);
+  }
+}
 
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
     if (client.connect("ESP32-wroom")) {
-      Serial.println("connected");
       client.subscribe(topic);
+      Serial.println("Connected to broker, subscribed the topic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -40,6 +65,32 @@ void reconnect() {
       delay(5000);
     }
   }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.println("Message received");
+  switch ((char) payload[0]) {
+    case '0':
+      currentState = LISTENING;
+      Serial.println("State changed to LISTENING");
+      break;
+    case '1':
+      currentState = RESULT_POSITIVE;
+      Serial.println("State changed to RESULT_POSITIVE");
+      stateChangeTime = millis(); // Record the time of state change
+      break;
+    case '2':
+      currentState = RESULT_NEGATIVE;
+      Serial.println("State changed to RESULT_NEGATIVE");
+      stateChangeTime = millis(); // Record the time of state change
+      break;
+    default:
+      currentState = UNKNOWN;
+      Serial.println("Unknown state");
+      stateChangeTime = millis(); // Record the time of state change
+      break;
+  }
+  update_LEDs();
 }
 
 void setup() {
@@ -63,70 +114,15 @@ void setup() {
     client.subscribe(topic);
     Serial.println("Connected to broker, subscribed the topic");
   } 
-  change_LED_state();
+  update_LEDs();
 }
-
-void change_LED_state(){
-  switch (state) {
-    case LISTENING:
-      digitalWrite(blue_led_gpio, HIGH);
-      digitalWrite(red_led_gpio, LOW);
-      digitalWrite(green_led_gpio, LOW);
-      Serial.println("State changed to LISTENING");
-    break;
-    case RESULT_POSITIVE:
-      digitalWrite(blue_led_gpio, LOW);
-      digitalWrite(red_led_gpio, LOW);
-      digitalWrite(green_led_gpio, HIGH);
-      Serial.println("State changed to RESULT_POSITIVE");
-    break;
-    case RESULT_NEGATIVE:
-      digitalWrite(blue_led_gpio, LOW);
-      digitalWrite(red_led_gpio, HIGH);
-      digitalWrite(green_led_gpio, LOW);
-      Serial.println("State changed to RESULT_NEGATIVE");
-    break;
-    default:
-      Serial.println("unknown state");
-      digitalWrite(blue_led_gpio, LOW);
-      digitalWrite(red_led_gpio, LOW);
-      digitalWrite(green_led_gpio, LOW);
-      Serial.println("Unknown state");
-    break;
-  }
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  state = (char) payload[0];
-  Serial.println("Message received");
-  change_LED_state();
-}
-
-unsigned long previousMillis = 0;
-const long interval = 10000;
-unsigned long currentMillis;
 
 void loop() {
  if (!client.connected()) {
     reconnect();
   }
   client.loop();
-
-  /*
-  if(state != LISTENING){
-
-    currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-
-      state = LISTENING;
-      digitalWrite(blue_led_gpio, HIGH);
-      digitalWrite(red_led_gpio, LOW);
-      digitalWrite(green_led_gpio, LOW);
-    }
-
-  }
-  */
+  check_return_to_LISTENING();
 }
 
 

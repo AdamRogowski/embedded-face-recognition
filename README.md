@@ -10,16 +10,24 @@ The project's architecture enables real-time communication and integration betwe
 
 ## Build it yorself (tips&tricks)
 
-For conducting face comparison no model was trained! Instead [face-recognition](https://pypi.org/project/face-recognition/) module was used. Despite how amazing it is after it's already succesfully installed, getting this beast to work eventually might be tricky, especially on Windows OS. [This](https://github.com/ageitgey/face_recognition/issues/175#issue-257710508) made the process so much easier.
+Facial Comparison:
 
-For uplink communication http turned out to be the most convenient. Also webSocket was considered and tested, however eventually provided to much overhead just for sending photos. For downlink communication MQTT was used. Secure versions of both protocols should be considered during further development of the project.
+For conducting face comparisons, the project utilized the [face-recognition](https://pypi.org/project/face-recognition/) module, negating the need for training a specific model. While the module is impressive, setting it up might be a challenge, particularly on Windows OS. To streamline the installation process, I found this [guide](https://github.com/ageitgey/face_recognition/issues/175#issue-257710508) immensely helpful.
 
-[Eclipse Mosquitto](https://mosquitto.org/) was used as a MQTT Broker on a local machine. Running a local broker might come up with some challenges, so here is a gentle reminder for basic actions, which might save some frustration:
+Communication Protocols:
 
-- if server and broker run on the same host, opereting within same private network usually saves some effort of overcoming built-in system security measures;
-- if needed, change rules in the mosquitto.conf (basic: allow_anonymus true, listener 1883);
-- for communnication between the broker and ESP32-WROOM, firewall rule has to be added (enabling incoming TCP packets on port 1883);
-- if WROOM can't establish connection with the broker, pay special attention to [WiFi.mode(WIFI_STA);](https://github.com/knolleary/pubsubclient/issues/138)
+Uplink communication predominantly relied on HTTP due to its convenience. Although WebSocket was considered and tested, its use resulted in excessive overhead for simply sending photos.
+
+For downlink communication, MQTT was the chosen protocol. Note that using secure versions of both HTTP and MQTT should be contemplated for the project's future development.
+
+MQTT Broker Setup:
+
+The project employed [Eclipse Mosquitto](https://mosquitto.org/) as the MQTT Broker on a local machine. Running a local broker may present challenges. Here are some essential actions that could prevent unnecessary frustration:
+
+- When the server and broker operate on the same host within a private network, it often eases efforts in bypassing inherent system security measures.
+- Consider modifying rules in the (`mosquitto.conf`) file (e.g., setting (`allow_anonymous true`) and defining the listener as (`1883`)).
+- For communication between the broker and ESP32-WROOM, add a firewall rule allowing incoming TCP packets on port (`1883`).
+- If the ESP32-WROOM struggles to connect with the broker, pay special attention to the configuration, especially regarding [WiFi.mode(WIFI_STA);](https://github.com/knolleary/pubsubclient/issues/138)
 
 ## Authors
 

@@ -33,4 +33,4 @@ The project employed [Eclipse Mosquitto](https://mosquitto.org/) as the MQTT Bro
 
 Adam Rogowski
 
-Dmytro Kirshev
+[Dmytro Kirshev](https://github.com/DimDimDimDimD)

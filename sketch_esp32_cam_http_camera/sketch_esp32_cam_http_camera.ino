@@ -13,7 +13,21 @@ const char* serverAddress = "http://192.168.43.234:8080/upload";
 HTTPClient http;
 
 // Define the pin for the button
-const int BUTTON_PIN = 16;
+//const int YELLOW_LED_PIN = 16;
+
+// ledPin refers to ESP32-CAM GPIO 4 (flashlight)
+const int FLASH_PIN = 4;
+const int LED_PIN = 33;
+
+const int TRIG_PIN = 12;
+const int ECHO_PIN = 13;
+
+//define sound speed in cm/uS
+#define SOUND_SPEED 0.034
+const int CAPTURE_DISTANCE = 90;
+
+long duration;
+float distanceCm;
 
 
 #define STATE_WAIT_PRESS   0
@@ -24,7 +38,7 @@ int state = STATE_WAIT_PRESS;
 
 unsigned long previousMillis = 0;
 
-const long interval = 10000;
+const long interval = 8000;
 
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
@@ -111,6 +125,10 @@ void sendPhoto() {
     return;
   }
 
+  digitalWrite(FLASH_PIN, HIGH);
+  delayMicroseconds(1000);
+  digitalWrite(FLASH_PIN, LOW);
+
   http.begin(serverAddress);
   http.addHeader("Content-Type", "application/octet-stream");
   int httpResponseCode = http.POST(fb->buf, fb->len);
@@ -129,17 +147,60 @@ void sendPhoto() {
 
 
 void setup(){
-  Serial.begin(115200);
+  Serial.begin(57600);
   
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(FLASH_PIN, OUTPUT);
+
+  pinMode(TRIG_PIN, OUTPUT); // Sets the trigPin as an Output
+  pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an Input
+  
+
+  //pinMode(BUTTON_PIN, INPUT_PULLUP);
+  
+  digitalWrite(LED_PIN, HIGH);
   setupCamera();
   connectToWiFi();
+  
 }
 
 unsigned long currentMillis;
 
 
 void loop() {
+
+  currentMillis = millis();
+  
+  // Clears the TRIG_Pin
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  // Sets the TRIG_Pin on HIGH state for 10 micro seconds
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(ECHO_PIN, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_SPEED/2;
+
+  if(distanceCm < CAPTURE_DISTANCE){
+    digitalWrite(LED_PIN, LOW);
+    Serial.println("Within capture distance");
+
+    if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    sendPhoto();
+  }
+
+  } 
+  else digitalWrite(LED_PIN, HIGH);
+
+  
+
   /*
   currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
@@ -149,7 +210,7 @@ void loop() {
   }
   */
 
-  
+  /*
   if (digitalRead(BUTTON_PIN) == LOW){
     switch (state) {
       case STATE_WAIT_PRESS:
@@ -179,5 +240,6 @@ void loop() {
       //Serial.println("Waiting for button press");
       break;
   }
+  */
   
 }
